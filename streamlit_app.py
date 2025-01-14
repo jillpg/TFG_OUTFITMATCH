@@ -54,7 +54,7 @@ if uploaded_json is not None:
 
 # Define helper functions
 def preprocess_input_data(input_data, autoencoder_model):
-    input_data = input_data.copy(deep=True).applymap(lambda x: x.lower() if isinstance(x, str) else x)
+    input_data = input_data.copy(deep=True).map(lambda x: x.lower() if isinstance(x, str) else x)
     for col in autoencoder_model.le_tab:
         input_data[col] = autoencoder_model.le_tab[col].transform(input_data[col])
     return input_data
