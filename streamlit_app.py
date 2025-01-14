@@ -82,7 +82,8 @@ def display_images(df, url_column='link', max_images=4, img_width=250):
             if i + j >= len(df):
                 break
             try:
-                response = requests.get(df.iloc[i + j][url_column])
+                response = requests.get(df.iloc[i + j][url_column], timeout=5)
+                response.raise_for_status()  # Verifica errores HTTP
                 img = Image.open(BytesIO(response.content))
                 cols[j].image(img, caption=f"Imagen {i + j + 1}", width=img_width)
             except Exception as e:
@@ -91,7 +92,6 @@ def display_images(df, url_column='link', max_images=4, img_width=250):
 
 st.markdown("### Selecciona el modelo para generar el outfit")
 model_option = st.selectbox("Elige un modelo", ["Autoencoder", "Siameses"])  # Cambiado a selectbox
-st.write(os.getcwd())
 
 if st.button("Generar Outfit"):
     if uploaded_image is not None and uploaded_json is not None:
