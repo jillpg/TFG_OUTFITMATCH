@@ -62,9 +62,6 @@ class OutfitRecommenderSiameses:
         return tf.keras.Model([*base_resnet.input, attr_input], final_embedding, name="base_embedding_model")
 
 
-
-
-
     def load_catalogo(self):
         KEYS = ["id", "gender", "subCategory", "articleType", "season", "usage", "Color", 'embedding']
         # Función para convertir strings al formato de array
