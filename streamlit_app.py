@@ -9,23 +9,22 @@ import matplotlib.pyplot as plt
 import requests
 from io import BytesIO
 from autoencoder import OutfitRecommenderAutoencoder
+import os
 
 
 # Claves esperadas en el JSON
 EXPECTED_KEYS = {"id", "gender", "subCategory", "articleType", "season", "usage", "Color" }
 
 # Título de la aplicación
-st.title("Cargar una imagen y un archivo JSON")
+st.markdown("<h1 style='text-decoration: underline;'>OUTFITMATCH</h1>", unsafe_allow_html=True)
 
+st.markdown("### Cargar una imagen y un archivo JSON")
 uploaded_image = st.file_uploader("Sube una imagen (formatos: jpg, jpeg, png)", type=["jpg", "jpeg", "png"])
 
 if uploaded_image is not None:
     # Mostrar la imagen cargada
     image = Image.open(uploaded_image)
     st.image(image, caption="Imagen cargada", width=300)
-
-# Separador
-st.markdown("---")
 
 uploaded_json = st.file_uploader("Sube un archivo JSON con datos tabulares", type=["json"])
 
@@ -89,45 +88,46 @@ def display_images(df, url_column='link', max_images=4, img_width=250):
             except Exception as e:
                 cols[j].warning(f"No se pudo cargar la imagen {i + j + 1}. Error: {e}")
 
-# Main logic
-if uploaded_image is not None and uploaded_json is not None:
-    path_resources = "/workspaces/TFG_OUTFITMATCH/resources/"
-    path_resources = "/workspaces/TFG_OUTFITMATCH/resources/"
 
-    st.markdown("### Selecciona el modelo para generar el outfit")
-    model_option = st.radio("Elige un modelo", ("Autoencoder", "Siameses"))
+st.markdown("### Selecciona el modelo para generar el outfit")
+model_option = st.selectbox("Elige un modelo", ["Autoencoder", "Siameses"])  # Cambiado a selectbox
+st.write(os.getcwd())
 
-    if model_option == "Autoencoder":
-        st.markdown("#### Generando outfit con el modelo Autoencoder...")
+if st.button("Generar Outfit"):
+    if uploaded_image is not None and uploaded_json is not None:
+        path_resources = os.getcwd() + "/resources/"
 
-        autoencoder_model = OutfitRecommenderAutoencoder(path_resources)
-        input_data = preprocess_input_data(df_data_prenda, autoencoder_model)
-        input_data_drop = input_data.drop(["image", "id"],errors="ignore", axis=1)
+        if model_option == "Autoencoder":
+            st.markdown("##### Generando outfit con el modelo Autoencoder...")
 
-        tensor_tuple = get_tensor_tuple(input_data_drop)
-        input_embedding = autoencoder_model.get_embedding(image, tensor_tuple)
-        indices, scores = autoencoder_model.iterative_max_score_selection(tensor_tuple, input_embedding)
+            autoencoder_model = OutfitRecommenderAutoencoder(path_resources)
+            input_data = preprocess_input_data(df_data_prenda, autoencoder_model)
+            input_data_drop = input_data.drop(["image", "id"],errors="ignore", axis=1)
 
-        data_indices = autoencoder_model.catalog_tab_all[indices]
-        df_outfit = pd.DataFrame(data_indices, columns=["id", "gender", "subCategory", "articleType", "season", "usage", "Color"])
+            tensor_tuple = get_tensor_tuple(input_data_drop)
+            input_embedding = autoencoder_model.get_embedding(image, tensor_tuple)
+            indices, scores = autoencoder_model.iterative_max_score_selection(tensor_tuple, input_embedding)
 
-        input_data = input_data.drop(["image"],errors="ignore", axis=1)
-        df_outfit = pd.concat([input_data, df_outfit])
-        df_outfit = reverse_transform(df_outfit, autoencoder_model)
+            data_indices = autoencoder_model.catalog_tab_all[indices]
+            df_outfit = pd.DataFrame(data_indices, columns=["id", "gender", "subCategory", "articleType", "season", "usage", "Color"])
 
-        df_merged = merge_with_links(df_outfit, path_resources)
+            input_data = input_data.drop(["image"],errors="ignore", axis=1)
+            df_outfit = pd.concat([input_data, df_outfit])
+            df_outfit = reverse_transform(df_outfit, autoencoder_model)
 
-        st.title("Visualización de Outfit - Autoencoder")
-        display_images(df_merged)
+            df_merged = merge_with_links(df_outfit, path_resources)
 
-    elif model_option == "Siameses":
-        st.markdown("#### Generando outfit con el modelo Siameses...")
+            st.markdown("### Visualización de Outfit - Autoencoder")
+            display_images(df_merged)
 
-        siameses_model = OutfitRecommenderSiameses(path_resources)
-        outfit, _ = siameses_model.recommend_outfit(df_data_prenda.iloc[0].drop(["image"],errors="ignore", axis=0), image)
+        elif model_option == "Siameses":
+            st.markdown("##### Generando outfit con el modelo Siameses...")
 
-        df_outfit = pd.DataFrame(outfit)
-        df_outfit = merge_with_links(df_outfit, path_resources)
+            siameses_model = OutfitRecommenderSiameses(path_resources)
+            outfit, _ = siameses_model.recommend_outfit(df_data_prenda.iloc[0].drop(["image"],errors="ignore", axis=0), image)
 
-        st.title("Visualización de Outfit - Siameses")
-        display_images(df_outfit)
+            df_outfit = pd.DataFrame(outfit)
+            df_outfit = merge_with_links(df_outfit, path_resources)
+
+            st.title("Visualización de Outfit - Siameses")
+            display_images(df_outfit)
