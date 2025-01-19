@@ -52,32 +52,32 @@ class OutfitRecommenderAutoencoder:
 
         # Penalizaciones vectorizadas
         usage_simil = tf.gather_nd(
-            self.compatibility_tensors['usage'], tf.stack([usage_input, usage_catalog], axis=1)
+            self.compatibility_tensors['usage1_usage2'], tf.stack([usage_input, usage_catalog], axis=1)
         )
         gender_simil = tf.gather_nd(
-            self.compatibility_tensors['gender'], tf.stack([gender_input, gender_catalog], axis=1)
+            self.compatibility_tensors['gender1_gender2'], tf.stack([gender_input, gender_catalog], axis=1)
         )
         article_simil = tf.gather_nd(
-            self.compatibility_tensors['article'], tf.stack([article_input, article_catalog], axis=1)
+            self.compatibility_tensors['articleType1_articleType2'], tf.stack([article_input, article_catalog], axis=1)
         )
         article_usage_simil = tf.gather_nd(
-            self.compatibility_tensors['article_usage'],
+            self.compatibility_tensors['articleType1_usage2'],
             tf.stack([article_input, usage_catalog], axis=1)
         )
         article_usage_usage_simil = tf.gather_nd(
-            self.compatibility_tensors['article_usage_usage'],
+            self.compatibility_tensors['articleType1_usage1_usage2'],
             tf.stack([article_input, usage_input, usage_catalog], axis=1)
         )
         article_usage_article_simil = tf.gather_nd(
-            self.compatibility_tensors['article_usage_article'],
+            self.compatibility_tensors['articleType1_usage1_articleType2'],
             tf.stack([article_input, usage_input, article_catalog], axis=1)
         )
         color_simil = tf.gather_nd(
-            self.compatibility_tensors['color'],
+            self.compatibility_tensors['Color1_Color2'],
             tf.stack([color_catalog, color_input], axis=1)
         )
         season_simil = tf.gather_nd(
-            self.compatibility_tensors['color'],
+            self.compatibility_tensors['season1_season2'],
             tf.stack([season_catalog, season_input], axis=1)
         )
 
@@ -97,7 +97,7 @@ class OutfitRecommenderAutoencoder:
         selected_subcategories = set()
         selected_subcategories.add(input_data[self.cat_cols.index('subCategory')].numpy())
 
-        accumulated_score = 1.0
+        accumulated_score = 0.0
         clases_sub = self.le_tab['subCategory'].classes_
         d_idx = np.where(clases_sub == 'dress')[0][0]
         t_idx = np.where(clases_sub == 'topwear')[0][0]
@@ -132,7 +132,7 @@ class OutfitRecommenderAutoencoder:
             max_score_idx = tf.argmax(masked_scores).numpy()
             max_score_value = masked_scores[max_score_idx].numpy()
 
-            accumulated_score *= max_score_value
+            accumulated_score =  (accumulated_score + max_score_value) / 2
 
             input_embedding = self.catalog_emb[max_score_idx:max_score_idx + 1]
             input_data = [x[max_score_idx] for x in self.catalog_tab]
@@ -141,7 +141,7 @@ class OutfitRecommenderAutoencoder:
             selected_subcategories.add(subcategories[max_score_idx])
 
             print(selected_subcategories)
-            print(f"Iteración: {len(selected_indices)}, Índice Seleccionado: {max_score_idx}, "
+            print(f"Iteración: {len(selected_indices)}, Índice Seleccionado: {max_score_idx}, Puntaje del Índice: {max_score_value} \n"
                   f"Subcategoría: {subcategories[max_score_idx]}, Puntaje Acumulado: {accumulated_score:.4f}")
 
         return selected_indices, accumulated_score

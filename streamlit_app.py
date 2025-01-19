@@ -100,7 +100,7 @@ if st.button("Generar Outfit"):
         if model_option == "Autoencoder":
             st.markdown("##### Generando outfit con el modelo Autoencoder...")
 
-            autoencoder_model = OutfitRecommenderAutoencoder(path_resources)
+            autoencoder_model = OutfitRecommenderAutoencoder(path_resources) # df_data_prenda, image
             input_data = preprocess_input_data(df_data_prenda, autoencoder_model)
             input_data_drop = input_data.drop(["image", "id"],errors="ignore", axis=1)
 

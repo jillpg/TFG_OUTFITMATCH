@@ -16,6 +16,8 @@ class OutfitRecommenderSiameses:
         self.catalogo = self.load_catalogo()
         self.encoders = self.load_encoders()
         self.base_model = self.load_model()
+        self.columnas_letab=["gender", "subCategory", "articleType", "season", "usage", "Color"]
+
 
     def build_base_embedding_model(self):
         # Inputs
