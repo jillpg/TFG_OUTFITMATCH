@@ -4,62 +4,21 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import ast
 
 
 class OutfitRecommenderSiameses:
     def __init__(self, path_resources):
-        print(os.getcwd())  # Obtiene el directorio actual
         self.path_resources = path_resources
         self.catalogo_path = path_resources + "catalogo_siameses.csv"
-        self.model_path = path_resources + "siameses_base_model.weights.h5"
+        self.model_path = path_resources + "model_siameses.keras"
         self.encoders_path = path_resources + "siameses_encoders.pkl"
         self.catalogo = self.load_catalogo()
         self.encoders = self.load_encoders()
-        self.base_model = self.load_model()
         self.columnas_letab=["gender", "subCategory", "articleType", "season", "usage", "Color"]
+        self.base_model =  tf.keras.models.load_model(self.model_path)
 
-
-    def build_base_embedding_model(self):
-        # Inputs
-        image_input = tf.keras.Input(shape=(224,224,3), name="image_input")
-        attr_input = tf.keras.Input(shape=(6,), name="attr_input")
-
-        # Base ResNet50 preentrenada en ImageNet
-        # exclude top = True -> usaremos nuestras propias capas densas
-        base_resnet = tf.keras.applications.ResNet50(include_top=False, weights='imagenet', input_tensor=image_input, pooling='avg')
-        
-        # base_resnet.output tendrá el vector de features (2048)
-        image_embedding = tf.keras.layers.Dense(128, activation='relu')(base_resnet.output)
-
-        # Embeddings para atributos
-        gender_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["gender"].classes_), output_dim=4)(attr_input[:,0])
-        subcat_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["subCategory"].classes_), output_dim=4)(attr_input[:,1])
-        arttype_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["articleType"].classes_), output_dim=4)(attr_input[:,2])
-        season_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["season"].classes_), output_dim=4)(attr_input[:,3])
-        usage_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["usage"].classes_), output_dim=4)(attr_input[:,4])
-        color_emb = tf.keras.layers.Embedding(input_dim=len(self.encoders["Color"].classes_), output_dim=4)(attr_input[:,5])
-
-        # Concatenar embeddings de atributos
-        attr_concat = tf.keras.layers.Concatenate(axis=1)([
-            gender_emb,
-            subcat_emb,
-            arttype_emb,
-            season_emb,
-            usage_emb,
-            color_emb,
-        ])
-        attr_embedding = tf.keras.layers.Dense(32, activation='relu')(attr_concat)
-
-        # Fusionar atributos e imagen
-        combined = tf.keras.layers.concatenate([image_embedding, attr_embedding])
-        final_embedding = tf.keras.layers.Dense(128, activation=None)(combined)
-        final_embedding = tf.keras.layers.Lambda(
-            lambda t: tf.nn.l2_normalize(t, axis=1),
-            output_shape=(128,), name="l2_normalize"
-        )(final_embedding)
-        
-        return tf.keras.Model([*base_resnet.input, attr_input], final_embedding, name="base_embedding_model")
-
+  
 
     def load_catalogo(self):
         KEYS = ["id", "gender", "subCategory", "articleType", "season", "usage", "Color", 'embedding']
@@ -77,10 +36,6 @@ class OutfitRecommenderSiameses:
         with open(self.encoders_path, 'rb') as file:
             return pickle.load(file)
 
-    def load_model(self):
-        modelo=self.build_base_embedding_model()
-        modelo.load_weights(self.model_path)
-        return modelo
 
     def preprocess_input_resnet(self, img):
         """Normalización de imagen para ResNet50."""
@@ -111,9 +66,10 @@ class OutfitRecommenderSiameses:
     def find_most_compatible(self, emb_ref, filtered_catalogo):
         """Encuentra la prenda más compatible con base en el embedding de referencia."""
         embeddings_matrix = np.vstack(filtered_catalogo["embedding"])
-        cosine_similarities = np.dot(embeddings_matrix, emb_ref.T)
+        st.write(emb_ref)
+        cosine_similarities = np.dot(embeddings_matrix, emb_ref)
         idx_max_similarity = np.argmax(cosine_similarities)
-        return filtered_catalogo.iloc[idx_max_similarity]
+        return filtered_catalogo.iloc[idx_max_similarity], cosine_similarities[idx_max_similarity]
 
     def average_embeddings(self, embeddings):
         """Calcula el promedio de una lista de embeddings."""
@@ -131,7 +87,7 @@ class OutfitRecommenderSiameses:
         emb_outfit = self.get_embedding(prenda_inicial, image_inicial).squeeze()
         filter_categories = [prenda_inicial.subCategory]
         outfit = [prenda_inicial]
-
+        cos=[]
         while True:
             # Lógica de categorías
             if "Dress" not in filter_categories and ("Bottomwear" in filter_categories or "Topwear" in filter_categories):
@@ -147,7 +103,7 @@ class OutfitRecommenderSiameses:
                 break
 
             # Encuentra la prenda más compatible
-            selected = self.find_most_compatible(emb_outfit,filtered_catalogo)
+            selected, cos_simil = self.find_most_compatible(emb_outfit,filtered_catalogo)
 
             # Actualiza el embedding del outfit
             emb_outfit = self.average_embeddings([emb_outfit, selected["embedding"]])
@@ -155,9 +111,9 @@ class OutfitRecommenderSiameses:
             # Actualiza las categorías y agrega la prenda al outfit
             filter_categories.append(selected.subCategory)
             outfit.append(selected)
+            cos.append(cos_simil)
 
             # Limita el tamaño del outfit
             if len(outfit) >= 4:
                 break
-
-        return outfit, filter_categories
+        return outfit, filter_categories, cos

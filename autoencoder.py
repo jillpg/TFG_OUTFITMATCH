@@ -1,3 +1,4 @@
+import pandas as pd
 import tensorflow as tf
 import numpy as np
 import pickle
@@ -19,6 +20,11 @@ class OutfitRecommenderAutoencoder:
         self.catalog_tab = self.catalog_tab_all[1:]
         self.catalog_tab_all = self.catalog_tab_all.T
         self.target_size=(224,224)
+        self.model_columns=["id", "gender", "subCategory", "articleType", "season", "usage", "Color"]
+        self.data_all=pd.DataFrame(self.catalog_tab_all, columns=self.model_columns)
+        self.data_all["embedding"]=list(self.catalog_emb)
+
+
         with open(encoders_path, "rb") as file:
             self.le_tab = pickle.load(file)
         
@@ -125,14 +131,17 @@ class OutfitRecommenderAutoencoder:
             combined_mask = tf.constant(mask) & tf.constant(valid_subcategory_mask, dtype=tf.bool)
 
             if not tf.reduce_any(combined_mask):
-                print("No hay más elementos válidos para seleccionar. Finalizando...")
+                #print("No hay más elementos válidos para seleccionar. Finalizando...")
                 break
 
             masked_scores = tf.where(combined_mask, scores, tf.zeros_like(scores))
             max_score_idx = tf.argmax(masked_scores).numpy()
             max_score_value = masked_scores[max_score_idx].numpy()
 
-            accumulated_score =  (accumulated_score + max_score_value) / 2
+            if len(selected_indices) > 0:
+                accumulated_score =  (accumulated_score + max_score_value) / 2
+            else:
+                accumulated_score=max_score_value
 
             input_embedding = self.catalog_emb[max_score_idx:max_score_idx + 1]
             input_data = [x[max_score_idx] for x in self.catalog_tab]
@@ -140,9 +149,9 @@ class OutfitRecommenderAutoencoder:
             selected_indices.append(max_score_idx)
             selected_subcategories.add(subcategories[max_score_idx])
 
-            print(selected_subcategories)
-            print(f"Iteración: {len(selected_indices)}, Índice Seleccionado: {max_score_idx}, Puntaje del Índice: {max_score_value} \n"
-                  f"Subcategoría: {subcategories[max_score_idx]}, Puntaje Acumulado: {accumulated_score:.4f}")
+            #print(selected_subcategories)
+            #print(f"Iteración: {len(selected_indices)}, Índice Seleccionado: {max_score_idx}, Puntaje del Índice: {max_score_value} \n"
+                  #f"Subcategoría: {subcategories[max_score_idx]}, Puntaje Acumulado: {accumulated_score:.4f}")
 
         return selected_indices, accumulated_score
 

@@ -124,10 +124,13 @@ if st.button("Generar Outfit"):
             st.markdown("##### Generando outfit con el modelo Siameses...")
 
             siameses_model = OutfitRecommenderSiameses(path_resources)
-            outfit, _ = siameses_model.recommend_outfit(df_data_prenda.iloc[0].drop(["image"],errors="ignore", axis=0), image)
-
+            outfit, _ , cos= siameses_model.recommend_outfit(df_data_prenda.iloc[0].drop(["image"],errors="ignore", axis=0), image)
+            st.write(cos)
             df_outfit = pd.DataFrame(outfit)
             df_outfit = merge_with_links(df_outfit, path_resources)
 
             st.title("Visualización de Outfit - Siameses")
             display_images(df_outfit)
+
+
+

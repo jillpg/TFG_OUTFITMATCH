@@ -1,0 +1,173 @@
+import os
+from matplotlib import pyplot as plt
+import pandas as pd
+import numpy as np
+from sklearn.manifold import TSNE
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import euclidean
+
+
+path_resources = os.getcwd() + "/resources/"
+# Assegura't que el dataset tingui una columna 'embeddings' amb els embeddings com llistes i una columna 'outfit_id'
+data_autoencoder = pd.read_csv(path_resources+"outfits_generate_autoencoder.csv")
+data_siameses = pd.read_csv(path_resources+"outfits_generate_siameses.csv")
+
+# Converteix la columna d'embeddings en arrays de numpy
+data_autoencoder['embedding'] = data_autoencoder['embedding'].apply(lambda x: np.array(eval(x, {"np": np})))
+data_siameses['embedding'] = data_siameses['embedding'].apply(lambda x: np.array(eval(x, {"np": np})))
+
+data_autoencoder['embedding'] = data_autoencoder['embedding'].apply(
+    lambda x: x / np.linalg.norm(x) if np.linalg.norm(x) > 0 else x
+)
+
+#data_siameses['embedding'] = data_siameses['embedding'].apply(lambda x: x / np.linalg.norm(x) if np.linalg.norm(x) > 0 else x)
+
+
+# Llindar de similitud
+threshold = 0.6
+
+# Funció per avaluar les recomanacions
+def evaluate_recommendations(data, threshold):
+    total_recommendations = 0
+    successful_recommendations = 0
+
+    # Agrupar per outfit_id
+    grouped = data.groupby('outfit_id')
+
+    for outfit_id, group in grouped:
+        if len(group) < 2:
+            continue  # Omet outfits amb menys de dues peces
+
+        # Selecciona la primera peça com a peça original
+        original_item = group.iloc[0]
+        original_embedding = original_item['embedding']
+
+        # Selecciona les peces candidates (la resta de l'outfit)
+        candidates = group.iloc[1:]
+        
+        simil = candidates['embedding'].apply(
+            lambda x: (
+                np.dot(original_embedding, x))
+        )
+
+
+        # Comprovar si alguna recomanació supera el llindar
+        if np.mean(simil) >= threshold:
+            successful_recommendations += 1
+
+        total_recommendations += 1
+
+    # Calcula el percentatge d'èxit
+    accuracy = successful_recommendations / total_recommendations if total_recommendations > 0 else 0
+    return accuracy
+
+
+def euclidean_to_cosine(euclidean_distance):
+    if euclidean_distance > np.sqrt(2):
+        raise ValueError("La distancia euclidiana debe estar en el rango [0, sqrt(2)] para vectores normalizados.")
+    return 1 - (euclidean_distance**2) / 2
+
+def evaluate_recommendations_euclidean(data, threshold):
+    total_recommendations = 0
+    successful_recommendations = 0
+
+    # Agrupar por outfit_id
+    grouped = data.groupby('outfit_id')
+
+    for outfit_id, group in grouped:
+        if len(group) < 2:
+            continue  # Omet outfits amb menys de dues peces
+
+        # Selecciona la primera peça com a peça original
+        original_item = group.iloc[0]
+        original_embedding = original_item['embedding']
+
+        # Selecciona les peces candidates (la resta de l'outfit)
+        candidates = group.iloc[1:]
+
+        # Calcula les distàncies euclidianes
+        distances = candidates['embedding'].apply(
+            lambda x: euclidean(original_embedding, x)
+        )
+        # Comprovar si alguna recomanació està per sota del llindar
+        if euclidean_to_cosine(distances.mean()) >= threshold:
+            successful_recommendations += 1
+
+        total_recommendations += 1
+
+    # Calcula el percentatge d'èxit
+    accuracy = successful_recommendations / total_recommendations if total_recommendations > 0 else 0
+    return accuracy
+
+
+# Avaluar el model
+accuracy_autoencoder = evaluate_recommendations(data_autoencoder, threshold)
+
+
+
+# Avaluar el model
+accuracy_siameses = evaluate_recommendations_euclidean(data_siameses, threshold)
+
+
+models = ['Autoencoder', 'Siameses']
+accuracies = [accuracy_autoencoder, accuracy_siameses]
+
+# Crear el gráfico de barras
+plt.figure(figsize=(8, 5))
+plt.bar(models, accuracies, width=0.4)
+plt.ylim(0, 1)  # Rango de 0 a 1 para representar accuracies
+plt.title(f'Comparación de vecinos mas cercanos entre Modelos (Threshold: {threshold})')
+plt.ylabel('Accuracy')
+plt.xlabel('Modelos')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+plt.savefig(os.getcwd() + "/archivos_informe/grafico_veins.jpg")
+
+
+perplexity=5
+
+# Convertir embeddings a array
+embeddings = np.vstack(data_autoencoder['embedding'].values)
+
+# Reducir a 2D usando t-SNE
+tsne = TSNE(n_components=2, random_state=42, perplexity=perplexity)
+embeddings_2d = tsne.fit_transform(embeddings)
+
+# Añadir las coordenadas 2D al DataFrame
+data_autoencoder['x'] = embeddings_2d[:, 0]
+data_autoencoder['y'] = embeddings_2d[:, 1]
+
+# Graficar
+plt.figure(figsize=(10, 8))
+for outfit_id, group in data_autoencoder.groupby('outfit_id'):
+    plt.scatter(group['x'], group['y'], label=f'Outfit {outfit_id}', alpha=0.7)
+
+plt.title('Embeddings en 2D por outfit_id')
+plt.xlabel('Dim 1')
+plt.ylabel('Dim 2')
+plt.savefig(os.getcwd() + "/archivos_informe/scatter_veins_autoencoder.jpg")
+
+"""--------------------------------------------------------------------------------"""
+
+
+
+# Convertir embeddings a array
+embeddings = np.vstack(data_siameses['embedding'].values)
+# Reducir a 2D usando t-SNE
+tsne = TSNE(n_components=2, random_state=42, perplexity=perplexity)
+embeddings_2d = tsne.fit_transform(embeddings)
+
+# Añadir las coordenadas 2D al DataFrame
+data_siameses['x'] = embeddings_2d[:, 0]
+data_siameses['y'] = embeddings_2d[:, 1]
+
+# Graficar
+plt.figure(figsize=(10, 8))
+for outfit_id, group in data_siameses.groupby('outfit_id'):
+    plt.scatter(group['x'], group['y'], label=f'Outfit {outfit_id}', alpha=0.7)
+
+plt.title('Embeddings en 2D por outfit_id')
+plt.xlabel('Dim 1')
+plt.ylabel('Dim 2')
+plt.savefig(os.getcwd() + "/archivos_informe/scatter_veins_siameses.jpg")
+

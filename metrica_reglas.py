@@ -1,18 +1,9 @@
-import streamlit as st
-from PIL import Image
-import pandas as pd
 import pickle
-
+from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
 import tensorflow as tf
-from siameses import OutfitRecommenderSiameses
-import matplotlib.pyplot as plt
-import requests
-from io import BytesIO
-from autoencoder import OutfitRecommenderAutoencoder
 import os
-import requests
-from io import BytesIO
-import time
 
 def validate_outfit_multidimensional(outfit, compatibility_matrices, encoders):
     """
@@ -39,11 +30,11 @@ def validate_outfit_multidimensional(outfit, compatibility_matrices, encoders):
                 for field in fields.split("_"):  # Separar los campos por guión bajo
                     if field.endswith('1'):
                         field_base = field[:-1]  # Quitar el sufijo '1'
-                        encoded_value = encoders[field_base].transform([prenda1[field_base]])[0]
+                        encoded_value = encoders[field_base].transform([prenda1[field_base].lower()])[0]
                         values.append(encoded_value)
                     elif field.endswith('2'):
                         field_base = field[:-1]  # Quitar el sufijo '2'
-                        encoded_value = encoders[field_base].transform([prenda2[field_base]])[0]
+                        encoded_value = encoders[field_base].transform([prenda2[field_base].lower()])[0]
                         values.append(encoded_value)
                     else:
                         raise ValueError(f"Campo {field} no tiene el formato esperado (_1 o _2).")
@@ -62,7 +53,7 @@ def validate_outfit_multidimensional(outfit, compatibility_matrices, encoders):
     return total_score / count if count > 0 else 0
 
 
-def evaluate_recommendations_multidimensional(recommendations_df, compatibility_matrices, encoders, threshold=0.5):
+def evaluate_recommendations_multidimensional(recommendations_df, compatibility_matrices, encoders, threshold=0.55):
     compliant = 0
     
     # Convertir el DataFrame en una lista de outfits
@@ -72,7 +63,6 @@ def evaluate_recommendations_multidimensional(recommendations_df, compatibility_
         score = validate_outfit_multidimensional(outfit, compatibility_matrices, encoders)
         if score >= threshold:  # Cumple si el score >= threshold
             compliant += 1
-    
     compliance_rate = compliant / len(grouped_recommendations)
     return compliance_rate
 
@@ -101,63 +91,42 @@ with open(path_resources+'autoencoder_compatibility.pkl', 'rb') as file:
 with open(path_resources+'autoencoder_encoders.pkl', 'rb') as file:
     encoders = pickle.load(file)
 
-catalog_all=pd.read_csv(path_resources+"df_fashion_v3.csv")
-samples=catalog_all.sample(10)
+outfits_autoencoder_df=pd.read_csv(path_resources+"outfits_generate_autoencoder.csv")
+outfits_siameses_df=pd.read_csv(path_resources+"outfits_generate_siameses.csv")
+outfits_aleatorios_df=pd.read_csv(path_resources+"outfits_generate_random.csv")
 
-# DataFrames para guardar outfits
-outfits_autoencoder = []
-outfits_siameses = []
-outfit_id = 0
+threshold=0.6
+# Evaluar las recomendaciones
+compliance_rate_autoeencoder = evaluate_recommendations_multidimensional(outfits_autoencoder_df, 
+                                                                         compatibility_matrices, encoders,threshold)
 
-columnas_letab=["gender", "subCategory", "articleType", "season", "usage", "Color"]
+with open(path_resources+'autoencoder_encoders.pkl', 'rb') as file:
+    encoders = pickle.load(file)
 
-autoencoder_model = OutfitRecommenderAutoencoder(path_resources)
-siameses_model=OutfitRecommenderSiameses(path_resources)
-for index, df_data_prenda in samples.iterrows():
-    print(outfit_id)
-    # Descargar imagen
-    image_response = requests.get(df_data_prenda["link"], timeout=20)
-    image_response.raise_for_status()  # Verifica errores HTTP
-    image = Image.open(BytesIO(image_response.content))
-    df_data_prenda=pd.DataFrame([df_data_prenda]).drop(["Unnamed: 0", "filename"],axis=1,errors="ignore")
-    # Procesar datos con Autoencoder
-    input_data=df_data_prenda.copy(deep=True)
-    input_data[columnas_letab] = preprocess_input_data(df_data_prenda[columnas_letab], autoencoder_model)
-    input_data_drop = input_data.drop(["image", "id", "link"], errors="ignore", axis=1)
-    tensor_tuple = get_tensor_tuple(input_data_drop)
-    input_embedding = autoencoder_model.get_embedding(image, tensor_tuple)
-
-    indices, scores = autoencoder_model.iterative_max_score_selection(tensor_tuple, input_embedding)
-    data_indices = autoencoder_model.catalog_tab_all[indices]
-    df_outfit_autoencoder = pd.DataFrame(data_indices, columns=["id", "gender", "subCategory", "articleType", "season", "usage", "Color"])
-
-    # Agregar links e ID de outfit
-    df_outfit_autoencoder["link"] = catalog_all.loc[catalog_all["id"].isin(df_outfit_autoencoder["id"]), "link"].values
-    df_outfit_autoencoder = reverse_transform(df_outfit_autoencoder, autoencoder_model)
-    df_outfit_autoencoder["id_outfit"] = outfit_id
-    outfits_autoencoder.append(df_outfit_autoencoder)
-
-    # Procesar datos con Siameses
-    input_data_drop = df_data_prenda.iloc[0].drop(["image", "link"], errors="ignore", axis=0)
-    outfit, _ = siameses_model.recommend_outfit(input_data_drop, image)
-    df_outfit_siameses = pd.DataFrame(outfit)
-
-    # Agregar links e ID de outfit
-    df_outfit_siameses["link"] = catalog_all.loc[catalog_all["id"].isin(df_outfit_siameses["id"]), "link"].values
-    df_outfit_siameses["id_outfit"] = outfit_id
-    outfits_siameses.append(df_outfit_siameses)
-    outfit_id += 1
-    time.sleep(5)
-
-
-# Consolidar DataFrames finales
-outfits_autoencoder_df = pd.concat(outfits_autoencoder, ignore_index=True)
-outfits_siameses_df = pd.concat(outfits_siameses, ignore_index=True)
-
-st.dataframe(outfits_autoencoder_df)
-st.dataframe(outfits_siameses_df)
+# Evaluar las recomendaciones
+compliance_rate_siameses = evaluate_recommendations_multidimensional(outfits_siameses_df, 
+                                                                     compatibility_matrices, encoders,threshold)
 
 
 # Evaluar las recomendaciones
-#compliance_rate = evaluate_recommendations_multidimensional(outfits_autoencoder_df, compatibility_matrices, encoders)
-#print(f"Taxa de compliment: {compliance_rate:.2f}")
+compliance_rate_random = evaluate_recommendations_multidimensional(outfits_aleatorios_df, 
+                                                                   compatibility_matrices, encoders,threshold)
+
+
+models = ['Autoencoder', 'Siameses', 'Random']
+accuracies = [compliance_rate_autoeencoder, compliance_rate_siameses, compliance_rate_random]
+
+# Crear el gráfico de barras
+plt.figure(figsize=(8, 5))
+plt.bar(models, accuracies, width=0.4)
+plt.ylim(0, 1)  # Rango de 0 a 1 para representar accuracies
+plt.title(f'Comparación de Consitencia con las Reglas entre Modelos (Threshold: {threshold})')
+plt.ylabel('Porcentaje de outfits')
+plt.xlabel('Modelos')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# Mostrar los valores sobre las barras
+for i, v in enumerate(accuracies):
+    plt.text(i, v + 0.02, f"{v:.2f}", ha='center', fontsize=10)
+
+
+plt.savefig(os.getcwd() + "/archivos_informe/grafico_reglas.jpg")
