@@ -3,8 +3,6 @@ import numpy as np
 import pandas as pd
 import warnings
 
-# Desactivar todos los warnings
-warnings.filterwarnings("ignore")
 
 import random
 import tensorflow as tf
@@ -40,7 +38,6 @@ def get_image_with_retries(url, max_retries=3, delay=5):
             return Image.open(BytesIO(response.content))
         except requests.exceptions.RequestException as e:
             retries += 1
-            #print(f"Error al descargar la imagen: {e}. Reintento {retries}/{max_retries}...")
             time.sleep(delay)
         except UnidentifiedImageError:
             print("Error: La URL no contiene una imagen válida.")
@@ -175,23 +172,16 @@ outfits_siameses_df.to_csv(path_resources + "outfits_generate_siameses.csv", ind
 
 
 
-# Filtrar categorías
-Topwear_cat = catalog_all[catalog_all["subCategory"] == "Topwear"]
-Bottomwear_cat = catalog_all[catalog_all["subCategory"] == "Bottomwear"]
-Shoes_cat = catalog_all[catalog_all["subCategory"] == "Shoes"]
-over_Topwear_cat = catalog_all[catalog_all["subCategory"] == "over_Topwear"]
-Dress_cat = catalog_all[catalog_all["subCategory"] == "Dress"]
 
 # Lista para guardar los outfits
 outfits = []
-outfit_id = 100
+outfit_id = 0
 
 # Generar varios outfits
 num_outfits_ran = 100  # Cambiar según el número de outfits deseados
 for _ in range(num_outfits_ran):
     # Seleccionar una fila aleatoria de cada categoría necesaria
     outfit = catalog_all.sample(4).assign(outfit_id=outfit_id)
- 
     outfits.append(outfit)
     outfit_id += 1
 
@@ -199,3 +189,52 @@ for _ in range(num_outfits_ran):
 outfits_aleatorios_df = pd.concat(outfits, ignore_index=True)
 outfits_aleatorios_df.to_csv(path_resources + "outfits_generate_random.csv", index=False)
 
+
+
+# Filtrar categorías
+Topwear_cat = catalog_all[catalog_all["subCategory"] == "Topwear"]
+Bottomwear_cat = catalog_all[catalog_all["subCategory"] == "Bottomwear"]
+Shoes_cat = catalog_all[catalog_all["subCategory"] == "Shoes"]
+over_Topwear_cat = catalog_all[catalog_all["subCategory"] == "over_Topwear"]
+Dress_cat = catalog_all[catalog_all["subCategory"] == "Dress"]
+
+outfits=[]
+outfit_id=0
+num_outfits_ran = 100  # Cambiar según el número de outfits deseados
+for _ in range(num_outfits_ran):
+    outfit = []
+
+    # Seleccionar una fila aleatoria de cada categoría necesaria
+    shoes = Shoes_cat.sample(1).copy()
+    shoes["outfit_id"] = outfit_id
+    outfit.append(shoes)
+
+    over_topwear = over_Topwear_cat.sample(1).copy()
+    over_topwear["outfit_id"] = outfit_id
+    outfit.append(over_topwear)
+
+    if random.choice([True, False]):  # Decidir entre Dress o (Bottomwear + Topwear)
+        topwear = Topwear_cat.sample(1).copy()
+        topwear["outfit_id"] = outfit_id
+        outfit.append(topwear)
+
+        bottomwear = Bottomwear_cat.sample(1).copy()
+        bottomwear["outfit_id"] = outfit_id
+        outfit.append(bottomwear)
+    else:
+        dress = Dress_cat.sample(1).copy()
+        dress["outfit_id"] = outfit_id
+        outfit.append(dress)
+
+    # Concatenar las filas del outfit actual
+    outfits.append(pd.concat(outfit))
+
+    # Incrementar el ID del outfit
+    outfit_id += 1
+
+# Concatenar todos los outfits en un único DataFrame
+outfit_perclass = pd.concat(outfits, ignore_index=True)
+
+# Guardar en un archivo CSV
+output_file = path_resources + "outfits_random_perClass.csv"
+outfit_perclass.to_csv(output_file, index=False)

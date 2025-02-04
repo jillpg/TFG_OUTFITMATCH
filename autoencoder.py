@@ -2,7 +2,6 @@ import pandas as pd
 import tensorflow as tf
 import numpy as np
 import pickle
-import streamlit as st
 
 class OutfitRecommenderAutoencoder:
     def __init__(self, resources_dir):
@@ -112,7 +111,7 @@ class OutfitRecommenderAutoencoder:
         subcategory_restrictions = {
             d_idx: {t_idx, b_idx},
             t_idx: {d_idx},
-            b_idx: {d_idx},
+            b_idx: {d_idx}
         }
 
         subcategories = self.catalog_tab[self.cat_cols.index('subCategory')]

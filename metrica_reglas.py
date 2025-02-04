@@ -94,6 +94,8 @@ with open(path_resources+'autoencoder_encoders.pkl', 'rb') as file:
 outfits_autoencoder_df=pd.read_csv(path_resources+"outfits_generate_autoencoder.csv")
 outfits_siameses_df=pd.read_csv(path_resources+"outfits_generate_siameses.csv")
 outfits_aleatorios_df=pd.read_csv(path_resources+"outfits_generate_random.csv")
+outfits_random_perClass_df=pd.read_csv(path_resources+"outfits_random_perClass.csv")
+
 
 threshold=0.6
 # Evaluar las recomendaciones
@@ -113,8 +115,12 @@ compliance_rate_random = evaluate_recommendations_multidimensional(outfits_aleat
                                                                    compatibility_matrices, encoders,threshold)
 
 
-models = ['Autoencoder', 'Siameses', 'Random']
-accuracies = [compliance_rate_autoeencoder, compliance_rate_siameses, compliance_rate_random]
+compliance_rate_randomPerclass = evaluate_recommendations_multidimensional(outfits_random_perClass_df, 
+                                                                   compatibility_matrices, encoders,threshold)
+
+
+models = ['Autoencoder', 'Siameses','Random_perClass' ,'Random']
+accuracies = [compliance_rate_autoeencoder, compliance_rate_siameses, compliance_rate_randomPerclass ,compliance_rate_random]
 
 # Crear el gráfico de barras
 plt.figure(figsize=(8, 5))

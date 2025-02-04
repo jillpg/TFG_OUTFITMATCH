@@ -120,8 +120,10 @@ plt.title(f'Comparación de vecinos mas cercanos entre Modelos (Threshold: {thre
 plt.ylabel('Accuracy')
 plt.xlabel('Modelos')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
-
+for i, v in enumerate(accuracies):
+    plt.text(i, v + 0.02, f"{v:.2f}", ha='center', fontsize=10)
 plt.savefig(os.getcwd() + "/archivos_informe/grafico_veins.jpg")
+
 
 
 perplexity=5
@@ -170,4 +172,3 @@ plt.title('Embeddings en 2D por outfit_id')
 plt.xlabel('Dim 1')
 plt.ylabel('Dim 2')
 plt.savefig(os.getcwd() + "/archivos_informe/scatter_veins_siameses.jpg")
-

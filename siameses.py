@@ -1,10 +1,8 @@
-import streamlit as st
 import tensorflow as tf
 import numpy as np
 import pandas as pd
 import pickle
-import os
-import ast
+
 
 
 class OutfitRecommenderSiameses:
@@ -66,7 +64,6 @@ class OutfitRecommenderSiameses:
     def find_most_compatible(self, emb_ref, filtered_catalogo):
         """Encuentra la prenda más compatible con base en el embedding de referencia."""
         embeddings_matrix = np.vstack(filtered_catalogo["embedding"])
-        st.write(emb_ref)
         cosine_similarities = np.dot(embeddings_matrix, emb_ref)
         idx_max_similarity = np.argmax(cosine_similarities)
         return filtered_catalogo.iloc[idx_max_similarity], cosine_similarities[idx_max_similarity]
