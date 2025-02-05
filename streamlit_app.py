@@ -89,7 +89,7 @@ def fetch_image_with_retries(url, retries=3, delay=2):
             else:  # Si és l'últim intent, llança l'excepció
                 raise e
 
-def display_images(df, url_column='link', max_images=4, img_width=200):
+def display_images(df, url_column='link', type_columns='subCategory', max_images=4, img_width=200):
     cols_per_row = 2
     for i in range(0, min(len(df), max_images), cols_per_row):
         cols = st.columns(cols_per_row)
@@ -98,10 +98,11 @@ def display_images(df, url_column='link', max_images=4, img_width=200):
                 break
             try:
                 img = fetch_image_with_retries(df.iloc[i + j][url_column])
+                tipo_cand= df.iloc[i + j][type_columns]
                 if i==0 and j==0:
-                    cols[j].image(img, caption=f"Imatge d'entrada", width=img_width)
+                    cols[j].image(img, caption=f"Imatge d'entrada: {tipo_cand}", width=img_width)
                 else:
-                    cols[j].image(img, caption=f"Candidata {i + j}", width=img_width)
+                    cols[j].image(img, caption=f"Candidata {i + j}: {tipo_cand}", width=img_width)
 
             except Exception as e:
                 cols[j].warning(f"No s'ha pogut carregar la imatge {i + j + 1}. Error: {e}")
@@ -118,6 +119,7 @@ if st.button("Generar Outfit"):
             st.markdown("##### Generant outfit amb el model Autoencoder...")
 
             autoencoder_model = OutfitRecommenderAutoencoder(path_resources) # df_data_prenda, image
+
             input_data = preprocess_input_data(df_data_prenda, autoencoder_model)
             input_data_drop = input_data.drop(["image", "id"],errors="ignore", axis=1)
 
@@ -131,8 +133,8 @@ if st.button("Generar Outfit"):
             input_data = input_data.drop(["image"],errors="ignore", axis=1)
             df_outfit = pd.concat([input_data, df_outfit])
             df_outfit = reverse_transform(df_outfit, autoencoder_model)
-
             df_merged = merge_with_links(df_outfit, path_resources)
+            st.write(df_merged)
 
             st.markdown("### Visualització d'Outfit - Autoencoder")
             display_images(df_merged)
@@ -144,6 +146,9 @@ if st.button("Generar Outfit"):
             outfit, _ , cos= siameses_model.recommend_outfit(df_data_prenda.iloc[0].drop(["image"],errors="ignore", axis=0), image)
             df_outfit = pd.DataFrame(outfit)
             df_outfit = merge_with_links(df_outfit, path_resources)
+            st.write(df_outfit)
 
             st.markdown("### Visualització d'Outfit - Siameses")
+            st.write("Hay imagenes que no concuerdan con el tipo, es un error del dataset")
+
             display_images(df_outfit)

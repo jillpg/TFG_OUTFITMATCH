@@ -2,7 +2,6 @@ import pandas as pd
 import tensorflow as tf
 import numpy as np
 import pickle
-
 class OutfitRecommenderAutoencoder:
     def __init__(self, resources_dir):
         # Rutas de los recursos
@@ -26,7 +25,6 @@ class OutfitRecommenderAutoencoder:
 
         with open(encoders_path, "rb") as file:
             self.le_tab = pickle.load(file)
-        
         with open(compatibility_tensors_path, "rb") as file:
             self.compatibility_tensors = pickle.load(file)
 
@@ -148,10 +146,7 @@ class OutfitRecommenderAutoencoder:
             selected_indices.append(max_score_idx)
             selected_subcategories.add(subcategories[max_score_idx])
 
-            #print(selected_subcategories)
-            #print(f"Iteración: {len(selected_indices)}, Índice Seleccionado: {max_score_idx}, Puntaje del Índice: {max_score_value} \n"
-                  #f"Subcategoría: {subcategories[max_score_idx]}, Puntaje Acumulado: {accumulated_score:.4f}")
-
+     
         return selected_indices, accumulated_score
 
     def get_embedding(self, input_image, input_data):
