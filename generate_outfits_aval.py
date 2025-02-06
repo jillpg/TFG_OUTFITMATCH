@@ -70,7 +70,6 @@ siameses_model=OutfitRecommenderSiameses(path_resources)
 
 
 for index, df_data_prenda in samples.iterrows():
-    print(outfit_id)
     # Descargar imagen con reintentos
     image = get_image_with_retries(df_data_prenda["link"], max_retries=3, delay=3)
     if image is None:
@@ -83,7 +82,7 @@ for index, df_data_prenda in samples.iterrows():
     input_data[columnas_letab] = preprocess_input_data(df_data_prenda[columnas_letab], autoencoder_model)
     input_data_drop = input_data.drop(["image", "id", "link"], errors="ignore", axis=1)
     tensor_tuple = get_tensor_tuple(input_data_drop)
-    input_embedding = autoencoder_model.get_embedding(image, tensor_tuple) #input_embeddings np.array (1,250)
+    input_embedding = autoencoder_model.get_embedding(image, tensor_tuple) 
 
     indices, scores = autoencoder_model.iterative_max_score_selection(tensor_tuple, input_embedding)
     data_indices = autoencoder_model.catalog_tab_all[indices]
@@ -100,6 +99,8 @@ for index, df_data_prenda in samples.iterrows():
 
 
     outfits_autoencoder.append(df_outfit_autoencoder)
+
+#---------------------------------------------------------------------------------
 
     # Procesar datos con Siameses
     input_data_drop = df_data_prenda.iloc[0].drop(["image", "link"], errors="ignore", axis=0)
@@ -190,51 +191,3 @@ outfits_aleatorios_df = pd.concat(outfits, ignore_index=True)
 outfits_aleatorios_df.to_csv(path_resources + "outfits_generate_random.csv", index=False)
 
 
-
-# Filtrar categorías
-Topwear_cat = catalog_all[catalog_all["subCategory"] == "Topwear"]
-Bottomwear_cat = catalog_all[catalog_all["subCategory"] == "Bottomwear"]
-Shoes_cat = catalog_all[catalog_all["subCategory"] == "Shoes"]
-over_Topwear_cat = catalog_all[catalog_all["subCategory"] == "over_Topwear"]
-Dress_cat = catalog_all[catalog_all["subCategory"] == "Dress"]
-
-outfits=[]
-outfit_id=0
-num_outfits_ran = 100  # Cambiar según el número de outfits deseados
-for _ in range(num_outfits_ran):
-    outfit = []
-
-    # Seleccionar una fila aleatoria de cada categoría necesaria
-    shoes = Shoes_cat.sample(1).copy()
-    shoes["outfit_id"] = outfit_id
-    outfit.append(shoes)
-
-    over_topwear = over_Topwear_cat.sample(1).copy()
-    over_topwear["outfit_id"] = outfit_id
-    outfit.append(over_topwear)
-
-    if random.choice([True, False]):  # Decidir entre Dress o (Bottomwear + Topwear)
-        topwear = Topwear_cat.sample(1).copy()
-        topwear["outfit_id"] = outfit_id
-        outfit.append(topwear)
-
-        bottomwear = Bottomwear_cat.sample(1).copy()
-        bottomwear["outfit_id"] = outfit_id
-        outfit.append(bottomwear)
-    else:
-        dress = Dress_cat.sample(1).copy()
-        dress["outfit_id"] = outfit_id
-        outfit.append(dress)
-
-    # Concatenar las filas del outfit actual
-    outfits.append(pd.concat(outfit))
-
-    # Incrementar el ID del outfit
-    outfit_id += 1
-
-# Concatenar todos los outfits en un único DataFrame
-outfit_perclass = pd.concat(outfits, ignore_index=True)
-
-# Guardar en un archivo CSV
-output_file = path_resources + "outfits_random_perClass.csv"
-outfit_perclass.to_csv(output_file, index=False)

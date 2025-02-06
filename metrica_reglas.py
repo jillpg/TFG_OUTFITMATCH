@@ -47,15 +47,15 @@ def validate_outfit_multidimensional(outfit, compatibility_matrices, encoders):
                 else:
                     raise ValueError("Solo se soportan matrices de 2 o 3 dimensiones.")
 
-                total_score += compatibility
+                total_score += (compatibility**0.6)
                 count += 1
 
-    return total_score / count if count > 0 else 0
+    return (total_score / count if count > 0 else 0)**(1/0.6)
 
 
 def evaluate_recommendations_multidimensional(recommendations_df, compatibility_matrices, encoders, threshold=0.55):
     compliant = 0
-    
+    mean=[]
     # Convertir el DataFrame en una lista de outfits
     grouped_recommendations = recommendations_df.groupby('outfit_id')  # Agrupa por una columna "outfit_id"
     for _, group in grouped_recommendations:
@@ -63,8 +63,10 @@ def evaluate_recommendations_multidimensional(recommendations_df, compatibility_
         score = validate_outfit_multidimensional(outfit, compatibility_matrices, encoders)
         if score >= threshold:  # Cumple si el score >= threshold
             compliant += 1
+        mean.append(score)
     compliance_rate = compliant / len(grouped_recommendations)
-    return compliance_rate
+#    mean= mean  / len(grouped_recommendations)
+    return compliance_rate , mean
 
 
 # Define helper functions
@@ -99,36 +101,36 @@ outfits_random_perClass_df=pd.read_csv(path_resources+"outfits_random_perClass.c
 
 threshold=0.6
 # Evaluar las recomendaciones
-compliance_rate_autoeencoder = evaluate_recommendations_multidimensional(outfits_autoencoder_df, 
+compliance_rate_autoeencoder, mean_autoeencoder= evaluate_recommendations_multidimensional(outfits_autoencoder_df, 
                                                                          compatibility_matrices, encoders,threshold)
 
 with open(path_resources+'autoencoder_encoders.pkl', 'rb') as file:
     encoders = pickle.load(file)
 
 # Evaluar las recomendaciones
-compliance_rate_siameses = evaluate_recommendations_multidimensional(outfits_siameses_df, 
+compliance_rate_siameses, mean_siameses = evaluate_recommendations_multidimensional(outfits_siameses_df, 
                                                                      compatibility_matrices, encoders,threshold)
 
 
 # Evaluar las recomendaciones
-compliance_rate_random = evaluate_recommendations_multidimensional(outfits_aleatorios_df, 
+compliance_rate_random, mean_random = evaluate_recommendations_multidimensional(outfits_aleatorios_df, 
                                                                    compatibility_matrices, encoders,threshold)
 
 
-compliance_rate_randomPerclass = evaluate_recommendations_multidimensional(outfits_random_perClass_df, 
+compliance_rate_randomPerclass, mean_randomPerclass = evaluate_recommendations_multidimensional(outfits_random_perClass_df, 
                                                                    compatibility_matrices, encoders,threshold)
 
 
-models = ['Autoencoder', 'Siameses','Random_perClass' ,'Random']
-accuracies = [compliance_rate_autoeencoder, compliance_rate_siameses, compliance_rate_randomPerclass ,compliance_rate_random]
+models = ['Autoencoder', 'Siameses' ,'Random']
+accuracies = [compliance_rate_autoeencoder, compliance_rate_siameses ,compliance_rate_random]
 
 # Crear el gráfico de barras
 plt.figure(figsize=(8, 5))
 plt.bar(models, accuracies, width=0.4)
 plt.ylim(0, 1)  # Rango de 0 a 1 para representar accuracies
-plt.title(f'Comparación de Consitencia con las Reglas entre Modelos (Threshold: {threshold})')
-plt.ylabel('Porcentaje de outfits')
-plt.xlabel('Modelos')
+plt.title(f'Comparació de Consitència amb les Regles entre Models (Llindar: {threshold})')
+plt.ylabel('Percentatge que superen el llindar')
+plt.xlabel('Models')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 # Mostrar los valores sobre las barras
 for i, v in enumerate(accuracies):
@@ -136,3 +138,21 @@ for i, v in enumerate(accuracies):
 
 
 plt.savefig(os.getcwd() + "/archivos_informe/grafico_reglas.jpg")
+
+
+
+means = [mean_autoeencoder, mean_siameses ,mean_random]
+
+# Crear el boxplot
+plt.figure(figsize=(8, 5))
+plt.boxplot(means, labels=models)
+
+# Configuración del gráfico
+plt.ylim(0, 1)  # Ajustar rango de valores
+plt.title('Distribució de Consitència amb les Regles entre Models')
+plt.ylabel('Consitència')
+plt.xlabel('Models')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+
+plt.savefig(os.getcwd() + "/archivos_informe/grafico_reglas_distribucion.jpg")

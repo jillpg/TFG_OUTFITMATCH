@@ -33,7 +33,7 @@ def evaluate_recommendations(data, threshold):
 
     # Agrupar per outfit_id
     grouped = data.groupby('outfit_id')
-
+    mean=[]
     for outfit_id, group in grouped:
         if len(group) < 2:
             continue  # Omet outfits amb menys de dues peces
@@ -50,16 +50,19 @@ def evaluate_recommendations(data, threshold):
                 np.dot(original_embedding, x))
         )
 
-
+        
         # Comprovar si alguna recomanació supera el llindar
-        if np.mean(simil) >= threshold:
+        mean_cand=np.mean(simil)**0.6 
+        if mean_cand >= threshold:
             successful_recommendations += 1
-
+        mean.append(mean_cand)
         total_recommendations += 1
+
 
     # Calcula el percentatge d'èxit
     accuracy = successful_recommendations / total_recommendations if total_recommendations > 0 else 0
-    return accuracy
+
+    return accuracy, mean
 
 
 def euclidean_to_cosine(euclidean_distance):
@@ -73,7 +76,7 @@ def evaluate_recommendations_euclidean(data, threshold):
 
     # Agrupar por outfit_id
     grouped = data.groupby('outfit_id')
-
+    mean=[]
     for outfit_id, group in grouped:
         if len(group) < 2:
             continue  # Omet outfits amb menys de dues peces
@@ -89,24 +92,25 @@ def evaluate_recommendations_euclidean(data, threshold):
         distances = candidates['embedding'].apply(
             lambda x: euclidean(original_embedding, x)
         )
+        mean_cand=euclidean_to_cosine(distances.mean())
         # Comprovar si alguna recomanació està per sota del llindar
-        if euclidean_to_cosine(distances.mean()) >= threshold:
+        if  mean_cand >= threshold:
             successful_recommendations += 1
-
+        mean.append(mean_cand)
         total_recommendations += 1
 
     # Calcula el percentatge d'èxit
     accuracy = successful_recommendations / total_recommendations if total_recommendations > 0 else 0
-    return accuracy
+    return accuracy, mean
 
 
 # Avaluar el model
-accuracy_autoencoder = evaluate_recommendations(data_autoencoder, threshold)
+accuracy_autoencoder, mean_autoencoder = evaluate_recommendations(data_autoencoder, threshold)
 
 
 
 # Avaluar el model
-accuracy_siameses = evaluate_recommendations_euclidean(data_siameses, threshold)
+accuracy_siameses, mean_siameses = evaluate_recommendations_euclidean(data_siameses, threshold)
 
 
 models = ['Autoencoder', 'Siameses']
@@ -116,13 +120,31 @@ accuracies = [accuracy_autoencoder, accuracy_siameses]
 plt.figure(figsize=(8, 5))
 plt.bar(models, accuracies, width=0.4)
 plt.ylim(0, 1)  # Rango de 0 a 1 para representar accuracies
-plt.title(f'Comparación de vecinos mas cercanos entre Modelos (Threshold: {threshold})')
-plt.ylabel('Accuracy')
-plt.xlabel('Modelos')
+plt.title(f'Similitud de cosinus entre peces entre Models (Llindar: {threshold})')
+plt.ylabel('Percentatge que superen el llindar')
+plt.xlabel('Models')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 for i, v in enumerate(accuracies):
     plt.text(i, v + 0.02, f"{v:.2f}", ha='center', fontsize=10)
 plt.savefig(os.getcwd() + "/archivos_informe/grafico_veins.jpg")
+
+
+means = [mean_autoencoder, mean_siameses]
+
+# Crear el boxplot
+plt.figure(figsize=(8, 5))
+plt.boxplot(means, labels=models)
+
+# Configuración del gráfico
+plt.ylim(0, 1)  # Ajustar rango de valores
+plt.title('Distribució de similitud de cosinus entre peces entre Models')
+plt.ylabel('Similitud')
+plt.xlabel('Models')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+
+plt.savefig(os.getcwd() + "/archivos_informe/grafico_veins_distribucion.jpg")
+
 
 
 
